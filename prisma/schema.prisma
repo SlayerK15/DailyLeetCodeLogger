@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(cuid())
+  name             String
+  email            String         @unique
+  password         String
+  leetcodeUsername String?        @unique
+  avatar           String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  stats            LeetCodeStats?
+  dailyLogs        DailyLog[]
+}
+
+model LeetCodeStats {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalSolved        Int      @default(0)
+  easySolved         Int      @default(0)
+  mediumSolved       Int      @default(0)
+  hardSolved         Int      @default(0)
+  acceptanceRate     Float    @default(0)
+  ranking            Int?
+  contributionPoints Int      @default(0)
+  streak             Int      @default(0)
+  totalSubmissions   Int      @default(0)
+  lastSyncedAt       DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model DailyLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime @default(now()) @db.Date
+  solved       Int      @default(0)
+  easySolved   Int      @default(0)
+  mediumSolved Int      @default(0)
+  hardSolved   Int      @default(0)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, date])
+}

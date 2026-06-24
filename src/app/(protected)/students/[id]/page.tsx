@@ -26,11 +26,12 @@ function computeStreaks(logs: Array<{ status: string }>) {
   return { progressStreak, showUpStreak, inactiveRun };
 }
 
-export default async function StudentProfilePage({ params }: { params: { id: string } }) {
+export default async function StudentProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await auth();
 
   const student = await prisma.user.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       stats: true,
       dailyLogs: {

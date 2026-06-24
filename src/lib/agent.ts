@@ -1,7 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
 export type DayStatusType = "PROGRESSED" | "PRACTICED" | "INACTIVE";
 
 export interface StudentContext {
@@ -33,8 +29,10 @@ const STATUS_INSTRUCTION: Record<DayStatusType, string> = {
     "They haven't started yet. Remind them the day isn't over. Even 30 focused minutes can mean a new solve. Be encouraging, not guilt-trippy.",
 };
 
-export async function generateReminderMessage(ctx: StudentContext): Promise<string> {
-  const prompt = `You are a friendly, motivating coding coach for a class of ${ctx.classSize} students solving LeetCode problems daily.
+const FALLBACK_MESSAGE = "Every problem you solve is a step forward — keep going!";
+
+function buildPrompt(ctx: StudentContext): string {
+  return `You are a friendly, motivating coding coach for a class of ${ctx.classSize} students solving LeetCode problems daily.
 
 Student info:
 - Name: ${ctx.name}
@@ -52,15 +50,57 @@ Rules:
 - Be specific to their stats (use their name, numbers, rank)
 - No subject line, no greeting, no sign-off — just the body text
 - End with one punchy motivating sentence`;
+}
+
+async function callAnthropic(prompt: string): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+
+  const Anthropic = (await import("@anthropic-ai/sdk")).default;
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const response = await client.messages.create({
-    model: "claude-opus-4-8",
+    model: "claude-sonnet-4-6",
     max_tokens: 512,
     messages: [{ role: "user", content: prompt }],
   });
 
   const textBlock = response.content.find((b) => b.type === "text");
-  return textBlock?.type === "text"
-    ? textBlock.text
-    : "Every problem you solve is a step forward — keep going!";
+  return textBlock?.type === "text" ? textBlock.text : null;
+}
+
+async function callOpenRouter(prompt: string): Promise<string | null> {
+  if (!process.env.OPENROUTER_API_KEY) return null;
+
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "anthropic/claude-sonnet-4",
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content ?? null;
+}
+
+export async function generateReminderMessage(ctx: StudentContext): Promise<string> {
+  const prompt = buildPrompt(ctx);
+
+  // Try Anthropic first, fall back to OpenRouter
+  try {
+    const result = await callAnthropic(prompt);
+    if (result) return result;
+  } catch {}
+
+  try {
+    const result = await callOpenRouter(prompt);
+    if (result) return result;
+  } catch {}
+
+  return FALLBACK_MESSAGE;
 }

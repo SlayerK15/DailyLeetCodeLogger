@@ -37,17 +37,25 @@ model LeetCodeStats {
   updatedAt          DateTime @updatedAt
 }
 
+enum DayStatus {
+  PROGRESSED
+  PRACTICED
+  INACTIVE
+}
+
 model DailyLog {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date         DateTime @default(now()) @db.Date
-  solved       Int      @default(0)
-  easySolved   Int      @default(0)
-  mediumSolved Int      @default(0)
-  hardSolved   Int      @default(0)
-  notes        String?
-  createdAt    DateTime @default(now())
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            DateTime  @default(now()) @db.Date
+  solved          Int       @default(0)
+  easySolved      Int       @default(0)
+  mediumSolved    Int       @default(0)
+  hardSolved      Int       @default(0)
+  status          DayStatus @default(INACTIVE)
+  rankingSnapshot Int?
+  notes           String?
+  createdAt       DateTime  @default(now())
 
   @@unique([userId, date])
 }
